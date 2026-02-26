@@ -77,6 +77,18 @@ status/
 
 *(Press `Ctrl+C` to cleanly exit the monitor).*
 
+### How to Update
+If a new version is released and you already have the repository cloned, you can update it by running:
+```bash
+cd csmon
+git reset --hard HEAD
+git pull origin main
+sudo make clean
+make
+sudo make install
+status
+```
+
 ---
 
 ## 🧠 Under The Hood (Metrics Explained)
