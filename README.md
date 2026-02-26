@@ -50,7 +50,7 @@ status/
 
 1. **Clone the repository** to your server:
    ```bash
-   git clone git@github.com:anlongawf/status.git csmon
+   git clone https://github.com/anlongawf/status.git csmon
    cd csmon
    ```
 
