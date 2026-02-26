@@ -1,52 +1,83 @@
-# CSMON (Cloudcheap Status Monitor)
+# CSMON: Cloudcheap Status Monitor
 
-A lightweight, real-time C++ terminal UI monitoring tool designed specifically for game server nodes. It provides critical hardware statistics directly in the terminal without relying on heavy web panels or intermediate agents.
+`csmon` is a high-performance, ultra-lightweight Terminal UI (TUI) monitoring tool designed specifically for game servers and bare-metal nodes. 
 
-## Features
+Instead of relying on heavy web stacks (like Node.js, Python, or Web Panels) that consume precious resources, `csmon` is written entirely in **C++11**. It directly reads hardware statistics from the Linux Kernel (`/proc` and `/sys`), guaranteeing an almost **0% CPU footprint** and consuming **less than 1MB of RAM**.
 
-- **Extreme Performance**: Written entirely in C++ reading directly from Linux Kernel (`/proc` and `/sys`), consuming almost 0% CPU and `< 1MB` RAM.
-- **CPU Monitoring**: Tracks real-time usage (%), Load Average (1m/5m/15m) to prevent overselling, and thermal sensor reading (°C).
-- **Power Consumption (Watts)**: Unique feature tracking live hardware energy usage by parsing Intel RAPL and AMD Ryzen `hwmon` microjoule sensors.
-- **Memory & Swap**: Visualizes RAM usage and swap depletion (crucial for game server crash prevention).
-- **Disk & Inodes**: Tracks not just disk space availability, but also Inode health.
-- **Network Stats**: Accurate inbound/outbound traffic calculation (Mbps) and packet drop detection (great for basic DDoS awareness).
+---
 
-## Directory Structure
+## 🚀 Key Features
+
+*   **Real-Time Terminal UI**: Features a clean, color-coded, auto-refreshing interface drawn using standard ANSI escape codes, removing the need for `ncurses` dependencies.
+*   **CPU Usage & Load Average**: Parses `/proc/stat` and `/proc/loadavg` to calculate live active time versus idle time, crucial for identifying game server overselling and preventing lag.
+*   **Thermal Sensors**: Reads CPU temperatures directly from `/sys/class/thermal/thermal_zone*`.
+*   **Power Consumption (Watts) ⚡**: Integrates deep hardware tracking by reading the `intel-rapl` interface (for Intel Xeon/Core) and `hwmon` energy inputs (for AMD Ryzen). It calculates power usage in real-time by interpreting microjoule differentials per second.
+*   **RAM & Swap**: Parses `/proc/meminfo` to display available RAM and Swap depletion to proactively prevent Out-Of-Memory (OOM) crashes.
+*   **Disk & Inode Health**: Uses `<sys/statvfs.h>` to monitor disk space on the root partition (`/`) and tracks Inode exhaustion—a common fault in environments with millions of small log files.
+*   **Network Intelligence**: Reads `/proc/net/dev` to calculate live inbound (RX) and outbound (TX) bandwidth in Mbps. More importantly, it highlights `Drop` and `Err` packets to help warn administrators of potential network disruption or volumetric DDoS attacks.
+
+---
+
+## 📁 Source Code Structure
+
+The project maintains a clean, scalable C++ architecture to allow for easy maintenance and future sensor additions (e.g., GPU tracking).
 
 ```text
-status/ (or csmon/)
-├── include/                 # Header files for variables and structs
-│   ├── metrics.h            # Structures (CPUData, NetData, DiskData)
-│   └── utils.h              # Terminal ANSI color and UI drawing functions
-├── src/                     # Source implementations
-│   ├── main.cpp             # Refresh loop and TUI rendering core
-│   ├── metrics.cpp          # Linux kernel extraction logic
-│   └── utils.cpp            # Aesthetic helpers
-├── Makefile                 # Easy 1-click build mechanism
-└── README.md
+status/
+├── include/
+│   ├── metrics.h         # Defines Data Structures (CPUData, MemData, DiskData, NetData)
+│   └── utils.h           # ANSI color definitions and UI helper declarations
+├── src/
+│   ├── main.cpp          # Core loop (1-second sleep), orchestrator, and TUI renderer
+│   ├── metrics.cpp       # Linux Kernel extraction logic (Filesystem, RAPL, procfs)
+│   └── utils.cpp         # Implementations for the dynamic progress bars & colors
+├── Makefile              # Build automation script
+└── README.md             # This documentation
 ```
 
-## Setup & Installation
+---
 
-**Prerequisites:** Ubuntu/CentOS/Debian with `g++` installed.
+## 🛠️ Build & Installation
 
-1. Clone the repository to your node:
+`csmon` is designed to be fully self-contained on any modern Linux system. 
+
+### Prerequisites
+*   A Linux environment (Ubuntu, CentOS, Debian, etc.)
+*   `g++` (GCC Compiler)
+*   `make`
+
+### Installation Steps
+
+1. **Clone the repository** to your server:
    ```bash
    git clone git@github.com:anlongawf/status.git csmon
    cd csmon
    ```
 
-2. Compile the source code using the provided Makefile:
+2. **Compile the program** using the included Makefile. The Makefile applies the `-O3` optimization flag to ensure maximum runtime speed:
    ```bash
    make
    ```
 
-3. Run the monitor (updates every 1 second):
+3. **Run the Monitor**:
    ```bash
    ./csmon
    ```
 
-> **Note on Power Sensor (Watts)**: In order to fetch accurate server wattage, `csmon` must be run on physical hardware or a hypervisor that passes through RAPL/hwmon architectures (usually bare-metal nodes or dedicated VMs with exposed powercaps). If unsupported, it will gracefully show `N/A`.
+*(Press `Ctrl+C` to cleanly exit the monitor).*
 
-## Contributing
-Feel free to open an issue or submit a Pull Request if you'd like to extend the monitor's capabilities (e.g., adding GPU stats or custom process tracking loops).
+---
+
+## 🧠 Under The Hood (Metrics Explained)
+
+If you intend to modify `src/metrics.cpp`, here is how `csmon` retrieves data:
+
+1. **Power (RAPL/hwmon)**: `getCPUEnergyUj()` loops through `/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj`. If unavailable, it falls back to `/sys/class/hwmon/hwmon*/energy1_input` to support newer AMD architectures.
+2. **CPU Percentage**: `getSysCPU()` calculates the derivative of CPU ticks (`user + nice + system + irq + softirq + steal`) between 1-second intervals.
+3. **Network Drops**: `getPrimaryNet()` scans all interfaces, dynamically selects the interface with the highest traffic (ignoring `lo` loopback), and parses the `rx_drop` column to visualize networking health.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! If you want to add support for NVIDIA GPU tracking (`nvidia-smi` wrappers) or specific game-server process counts (e.g., matching PIDs for Minecraft/Rust servers), feel free to fork the repository and submit a Pull Request.
