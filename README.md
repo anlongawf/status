@@ -50,8 +50,8 @@ status/
 
 1. **Clone the repository** to your server:
    ```bash
-   git clone https://github.com/anlongawf/status.git csmon
-   cd csmon
+   git clone https://github.com/anlongawf/status.git
+   cd status
    ```
 
 2. **Compile the program** using the included Makefile. The Makefile applies the `-O3` optimization flag to ensure maximum runtime speed:
@@ -80,7 +80,7 @@ status/
 ### How to Update
 If a new version is released and you already have the repository cloned, you can update it by running:
 ```bash
-cd csmon
+cd status
 git reset --hard HEAD
 git pull origin main
 sudo make clean
