@@ -17,9 +17,12 @@ int main() {
     // Refresh interval: 1s
     const int INTERVAL_MS = 1000; 
     
+    // Clear screen ONCE at the start
+    cout << "\033[2J";
+    
     while (true) {
-        // Clear screen and cursor home
-        cout << "\033[2J\033[H";
+        // Move cursor to top-left instead of clearing the screen to prevent flickering
+        cout << "\033[H";
         
         // ------------------
         // CALCULATE METRICS

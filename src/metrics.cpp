@@ -141,17 +141,41 @@ long long getCPUEnergyUj() {
         return totalUj;
     }
     
-    // Fallback for some AMD systems using hwmon
-    for (int i = 0; i < 5; ++i) {
-        ifstream fp_hwmon("/sys/class/hwmon/hwmon" + to_string(i) + "/energy1_input");
-        if (fp_hwmon.is_open()) {
-            long long uj = 0;
-            if (fp_hwmon >> uj) {
-                return uj; // Found hwmon energy_uj (Usually AMD reports total)
+    // Deeper Fallback for AMD EPYC / Ryzen using hwmon
+    // Some systems expose power in hwmonX/energy1_input, energy2_input, etc.
+    long long amdTotalUj = 0;
+    bool foundAmd = false;
+    for (int i = 0; i < 10; ++i) { // Check up to 10 hwmon devices
+        for (int j = 1; j <= 4; ++j) { // Check energy1_input through energy4_input
+            string path = "/sys/class/hwmon/hwmon" + to_string(i) + "/energy" + to_string(j) + "_input";
+            ifstream fp_hwmon(path);
+            if (fp_hwmon.is_open()) {
+                long long uj = 0;
+                if (fp_hwmon >> uj) {
+                    amdTotalUj += uj;
+                    foundAmd = true;
+                }
             }
         }
     }
     
+    if (foundAmd) return amdTotalUj;
+    
+    // Some EPYC systems put it directly in powercap/amd_energy
+    for (int i = 0; i < 4; ++i) {
+        string path = "/sys/class/powercap/amd_energy/amd_energy:" + to_string(i) + "/energy_uj";
+        ifstream fp_amd(path);
+        if (fp_amd.is_open()) {
+            long long uj = 0;
+            if (fp_amd >> uj) {
+                amdTotalUj += uj;
+                foundAmd = true;
+            }
+        }
+    }
+    
+    if (foundAmd) return amdTotalUj;
+
     return 0; // Unsupported
 }
 
