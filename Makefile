@@ -22,4 +22,15 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 clean:
 	rm -rf $(BUILDDIR) $(TARGET)
 
-.PHONY: all clean
+install: $(TARGET)
+	@echo "Installing csmon as 'status' command..."
+	sudo cp $(TARGET) /usr/local/bin/status
+	sudo chmod +x /usr/local/bin/status
+	@echo "Done! You can now type 'status' anywhere to run the monitor."
+
+uninstall:
+	@echo "Removing 'status' command..."
+	sudo rm -f /usr/local/bin/status
+	@echo "Done!"
+
+.PHONY: all clean install uninstall
