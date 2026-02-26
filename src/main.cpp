@@ -19,7 +19,8 @@ int main() {
     const int INTERVAL_MS = 1000; 
     
     // Clear screen ONCE at the start
-    cout << "\033[2J";
+    cout << "\033[2J\033[H";
+    bool is_first_run = true;
     
     while (true) {
         // ------------------
@@ -66,8 +67,12 @@ int main() {
         // RENDER UI TO BUFFER
         // ------------------
         stringstream ss;
-        // Move cursor top-left
-        ss << "\033[H";
+        if (is_first_run) {
+            is_first_run = false;
+        } else {
+            // Move cursor Up 26 lines cleanly
+            ss << "\033[26A";
+        }
         
         ss << BOLD << CYAN << "=========================================================\033[K\n";
         ss << " 🚀 CLOUDCHEAP STATUS MONITOR | AUTO REFRESH: 1S\033[K\n";
@@ -96,7 +101,7 @@ int main() {
 
         ss << " Power: ";
         if (watts > 0) ss << colorize(watts, 100, 200) << watts << " W\033[K\n" << RESET;
-        else ss << "N/A (RAPL/hwmon unsupported)\033[K\n";
+        else ss << "N/A (No RAPL Kernel Module / IPMI Required)\033[K\n";
         
         ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
 
