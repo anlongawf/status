@@ -1,33 +1,52 @@
-# Server Status Monitor
+# CSMON (Cloudcheap Status Monitor)
 
-Hệ thống web quản lý và giám sát thông tin phần cứng máy chủ. Project này giúp theo dõi các thông số hệ thống theo thời gian thực như CPU, RAM, Storage (Disk) và Network.
+A lightweight, real-time C++ terminal UI monitoring tool designed specifically for game server nodes. It provides critical hardware statistics directly in the terminal without relying on heavy web panels or intermediate agents.
 
-## Tính năng chính
+## Features
 
-- **Giám sát CPU**: Hiển thị phần trăm sử dụng CPU, nhiệt độ, tần số hoạt động của các lõi (cores).
-- **Giám sát RAM**: Theo dõi dung lượng RAM tổng, đã sử dụng, còn trống và bộ nhớ Swap/Virtual Memory.
-- **Giám sát Ổ cứng (Disk)**: Quản lý không gian lưu trữ, phân vùng đĩa, tốc độ đọc/ghi (I/O).
-- **Giám sát Mạng (Network)**: Băng thông vào/ra (Inbound/Outbound traffic), độ trễ (latency), số lượng kết nối đang hoạt động.
-- **Cảnh báo (Alerting)**: Tự động gửi thông báo khi tài nguyên máy chủ vượt ngưỡng an toàn (ví dụ: RAM > 90%).
+- **Extreme Performance**: Written entirely in C++ reading directly from Linux Kernel (`/proc` and `/sys`), consuming almost 0% CPU and `< 1MB` RAM.
+- **CPU Monitoring**: Tracks real-time usage (%), Load Average (1m/5m/15m) to prevent overselling, and thermal sensor reading (°C).
+- **Power Consumption (Watts)**: Unique feature tracking live hardware energy usage by parsing Intel RAPL and AMD Ryzen `hwmon` microjoule sensors.
+- **Memory & Swap**: Visualizes RAM usage and swap depletion (crucial for game server crash prevention).
+- **Disk & Inodes**: Tracks not just disk space availability, but also Inode health.
+- **Network Stats**: Accurate inbound/outbound traffic calculation (Mbps) and packet drop detection (great for basic DDoS awareness).
 
-## Cài đặt
+## Directory Structure
 
-1. Clone repository về máy:
+```text
+status/ (or csmon/)
+├── include/                 # Header files for variables and structs
+│   ├── metrics.h            # Structures (CPUData, NetData, DiskData)
+│   └── utils.h              # Terminal ANSI color and UI drawing functions
+├── src/                     # Source implementations
+│   ├── main.cpp             # Refresh loop and TUI rendering core
+│   ├── metrics.cpp          # Linux kernel extraction logic
+│   └── utils.cpp            # Aesthetic helpers
+├── Makefile                 # Easy 1-click build mechanism
+└── README.md
+```
+
+## Setup & Installation
+
+**Prerequisites:** Ubuntu/CentOS/Debian with `g++` installed.
+
+1. Clone the repository to your node:
    ```bash
-   git clone git@github.com:anlongawf/status.git
+   git clone git@github.com:anlongawf/status.git csmon
+   cd csmon
    ```
 
-2. Cài đặt các dependencies cần thiết (nếu có):
+2. Compile the source code using the provided Makefile:
    ```bash
-   npm install
-   # hoặc pip install -r requirements.txt
+   make
    ```
 
-3. Khởi chạy hệ thống:
+3. Run the monitor (updates every 1 second):
    ```bash
-   npm start
-   # hoặc python main.py
+   ./csmon
    ```
 
-## Đóng góp
-Nếu bạn muốn đóng góp cho dự án, vui lòng tạo Pull Request hoặc mở Issue mới.
+> **Note on Power Sensor (Watts)**: In order to fetch accurate server wattage, `csmon` must be run on physical hardware or a hypervisor that passes through RAPL/hwmon architectures (usually bare-metal nodes or dedicated VMs with exposed powercaps). If unsupported, it will gracefully show `N/A`.
+
+## Contributing
+Feel free to open an issue or submit a Pull Request if you'd like to extend the monitor's capabilities (e.g., adding GPU stats or custom process tracking loops).
