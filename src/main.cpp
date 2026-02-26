@@ -5,8 +5,10 @@
 #include <thread>
 #include <chrono>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
+
 
 int main() {
     cout << "\033[?25l"; // Hide cursor
