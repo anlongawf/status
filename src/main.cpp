@@ -21,6 +21,13 @@ int main() {
     // Clear screen ONCE at the start
     cout << "\033[2J\033[H";
     bool is_first_run = true;
+    int previous_lines = 0;
+    
+    // Sparkline history buffers
+    std::deque<double> cpu_history;
+    std::deque<double> rx_history;
+    std::deque<double> tx_history;
+    const int HISTORY_LIMIT = 20;
     
     while (true) {
         // ------------------
@@ -34,6 +41,9 @@ int main() {
         double totalDelta = curCpu.totalTime - prevCpu.totalTime;
         double cpuPercent = 100.0 * (activeDelta / totalDelta);
         prevCpu = curCpu;
+        
+        cpu_history.push_back(cpuPercent);
+        if (cpu_history.size() > HISTORY_LIMIT) cpu_history.pop_front();
         
         // Power (Watts)
         long long curEnergy = getCPUEnergyUj();
@@ -59,9 +69,24 @@ int main() {
         double mbpsIn = ((curNet.rxBytes - prevNet.rxBytes) * 8.0 / 1000000.0) / (INTERVAL_MS / 1000.0);
         double mbpsOut = ((curNet.txBytes - prevNet.txBytes) * 8.0 / 1000000.0) / (INTERVAL_MS / 1000.0);
         prevNet = curNet;
+        
+        rx_history.push_back(mbpsIn);
+        if (rx_history.size() > HISTORY_LIMIT) rx_history.pop_front();
+        tx_history.push_back(mbpsOut);
+        if (tx_history.size() > HISTORY_LIMIT) tx_history.pop_front();
 
         // SysInfo
         SysInfo sys = getSysInfo();
+        
+        // Terminal width for layout
+        int termWidth = getTerminalWidth();
+        if (termWidth < 60) termWidth = 60; // Minimum reasonable size
+        int barWidth = termWidth / 3; // Allocate 33% of screen to progress bars
+        
+        std::string separator = "";
+        for (int i=0; i < termWidth - 4; ++i) separator += "=";
+        std::string thin_separator = "";
+        for (int i=0; i < termWidth - 4; ++i) thin_separator += "-";
 
         // ------------------
         // RENDER UI TO BUFFER
@@ -70,13 +95,13 @@ int main() {
         if (is_first_run) {
             is_first_run = false;
         } else {
-            // Move cursor Up 26 lines cleanly
-            ss << "\033[26A";
+            // Move cursor Up cleanly based on the previous frame size
+            ss << "\033[" << previous_lines << "A";
         }
         
-        ss << BOLD << CYAN << "=========================================================\033[K\n";
+        ss << BOLD << CYAN << separator << "\033[K\n";
         ss << " 🚀 CLOUDCHEAP STATUS MONITOR | AUTO REFRESH: 1S\033[K\n";
-        ss << "=========================================================\033[K\n" << RESET;
+        ss << separator << "\033[K\n" << RESET;
         
         // SYSTEM INFO BLOCK
         ss << BOLD << " [ SYSTEM ]\033[K\n" << RESET;
@@ -85,13 +110,14 @@ int main() {
         ss << " CPU:    " << sys.cpuModel << "\033[K\n";
         ss << " Uptime: " << sys.uptime << "\033[K\n";
         
-        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
+        ss << CYAN << thin_separator << "\033[K\n" << RESET;
 
         // CPU BLOCK
         double temp = getCPUTemp();
         ss << BOLD << " [ CPU ]\033[K\n" << RESET;
-        ss << " Usage: " << colorize(cpuPercent, 70, 90) << drawBar(cpuPercent) << " ";
-        ss << fixed << setprecision(1) << cpuPercent << "%\t" << RESET << "| Cores: " << getCoreCount() << "\033[K\n";
+        ss << " Usage: " << colorize(cpuPercent, 70, 90) << drawBar(cpuPercent, barWidth) << " ";
+        ss << fixed << setprecision(1) << cpuPercent << "%  " << RESET << "| Cores: " << getCoreCount();
+        ss << "  [ " << drawSparkline(cpu_history, 100.0) << " ]\033[K\n";
         
         ss << " Temp:  ";
         if (temp > 0) ss << colorize(temp, 75, 85) << temp << "°C\t\t\t" << RESET;
@@ -103,38 +129,42 @@ int main() {
         if (watts > 0) ss << colorize(watts, 100, 200) << watts << " W\033[K\n" << RESET;
         else ss << "N/A (No RAPL Kernel Module / IPMI Required)\033[K\n";
         
-        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
+        ss << CYAN << thin_separator << "\033[K\n" << RESET;
 
         // MEM BLOCK
         ss << BOLD << " [ RAM & SWAP ]\033[K\n" << RESET;
-        ss << " RAM:  " << colorize(ramPercent, 80, 95) << drawBar(ramPercent) << " ";
+        ss << " RAM:  " << colorize(ramPercent, 80, 95) << drawBar(ramPercent, barWidth) << " ";
         ss << (usedRAM/1024) << "MB / " << (mem.totalRAM/1024) << "MB (" << (int)ramPercent << "%)\033[K\n" << RESET;
         
-        ss << " Swap: " << colorize(swapPercent, 1, 50) << drawBar(swapPercent) << " ";
+        ss << " Swap: " << colorize(swapPercent, 1, 50) << drawBar(swapPercent, barWidth) << " ";
         if (mem.totalSwap > 0)
             ss << ((mem.totalSwap - mem.freeSwap)/1024) << "MB / " << (mem.totalSwap/1024) << "MB (" << (int)swapPercent << "%)\033[K\n" << RESET;
         else
             ss << "0MB (Disabled)\033[K\n" << RESET;
             
-        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
+        ss << CYAN << thin_separator << "\033[K\n" << RESET;
 
         // DISK BLOCK
         ss << BOLD << " [ DISK / ]\033[K\n" << RESET;
-        ss << " Space: " << colorize(disk.percentUsed, 80, 95) << drawBar(disk.percentUsed) << " ";
+        ss << " Space: " << colorize(disk.percentUsed, 80, 95) << drawBar(disk.percentUsed, barWidth) << " ";
         ss << disk.usedGB << "GB / " << disk.totalGB << "GB (" << (int)disk.percentUsed << "%)\033[K\n" << RESET;
         ss << " Inode: " << colorize(disk.inodePercentUsed, 80, 90) << (int)disk.inodePercentUsed << "% Used\033[K\n" << RESET;
 
-        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
+        ss << CYAN << thin_separator << "\033[K\n" << RESET;
 
         // NET BLOCK
         ss << BOLD << " [ NETWORK (" << curNet.interface << ") ]\033[K\n" << RESET;
-        ss << " RX In:  " << mbpsIn << " Mbps\t\t[ Loss: " << (curNet.rxDrop > 0 ? RED : GREEN) << curNet.rxDrop << RESET << " ]\033[K\n";
-        ss << " TX Out: " << mbpsOut << " Mbps\t\t[ Err:  " << (curNet.rxErr > 0 ? RED : GREEN) << curNet.rxErr << RESET << " ]\033[K\n";
+        ss << " RX In:  " << mbpsIn << " Mbps\t[ " << drawSparkline(rx_history, -1.0) << " ]\t[ Loss: " << (curNet.rxDrop > 0 ? RED : GREEN) << curNet.rxDrop << RESET << " ]\033[K\n";
+        ss << " TX Out: " << mbpsOut << " Mbps\t[ " << drawSparkline(tx_history, -1.0) << " ]\t[ Err:  " << (curNet.rxErr > 0 ? RED : GREEN) << curNet.rxErr << RESET << " ]\033[K\n";
 
-        ss << CYAN << "=========================================================\033[K\n" << RESET;
+        ss << CYAN << separator << "\033[K\n" << RESET;
+        
+        // Count number of lines printed to correctly backtrack next frame
+        std::string bufferStr = ss.str();
+        previous_lines = std::count(bufferStr.begin(), bufferStr.end(), '\n');
         
         // Print everything instantly and flush to trigger visual update
-        cout << ss.str() << flush;
+        cout << bufferStr << flush;
     }
     
     return 0;

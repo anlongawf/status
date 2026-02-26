@@ -2,6 +2,8 @@
 #define UTILS_H
 
 #include <string>
+#include <vector>
+#include <deque>
 
 // ANSI Color Codes
 #define RESET   "\033[0m"
@@ -13,6 +15,9 @@
 #define CYAN    "\033[36m"
 
 std::string colorize(double value, double warn, double danger, bool invert = false);
-std::string drawBar(double percent);
+std::string drawBar(double percent, int width = 20);
+
+int getTerminalWidth();
+std::string drawSparkline(const std::deque<double>& values, double max_val = 100.0);
 
 #endif // UTILS_H
