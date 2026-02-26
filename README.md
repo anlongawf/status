@@ -59,7 +59,18 @@ status/
    make
    ```
 
-3. **Run the Monitor**:
+3. **Global Installation (Optional but Recommended)**:
+   You can install `csmon` globally into your Linux `/usr/local/bin` directory. This allows you to type `status` from anywhere to launch the monitor, similar to `htop`:
+   ```bash
+   sudo make install
+   ```
+
+4. **Run the Monitor**:
+   If installed globally, simply type:
+   ```bash
+   status
+   ```
+   If not installed locally, run:
    ```bash
    ./csmon
    ```
