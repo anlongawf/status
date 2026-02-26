@@ -72,7 +72,7 @@ status/
    ```
    If not installed locally, run:
    ```bash
-   ./csmon
+   ./status
    ```
 
 *(Press `Ctrl+C` to cleanly exit the monitor).*

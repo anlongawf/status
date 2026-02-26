@@ -4,7 +4,7 @@ CXXFLAGS = -std=c++11 -O3 -Wall
 SRCDIR = src
 INCDIR = include
 BUILDDIR = build
-TARGET = csmon
+TARGET = status
 
 # Gắn danh sách file *.cpp vào
 SOURCES = $(wildcard $(SRCDIR)/*.cpp)
@@ -23,7 +23,7 @@ clean:
 	rm -rf $(BUILDDIR) $(TARGET)
 
 install: $(TARGET)
-	@echo "Installing csmon as 'status' command..."
+	@echo "Installing status command..."
 	sudo cp $(TARGET) /usr/local/bin/status
 	sudo chmod +x /usr/local/bin/status
 	@echo "Done! You can now type 'status' anywhere to run the monitor."
