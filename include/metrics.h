@@ -3,6 +3,15 @@
 
 #include <string>
 
+// System Info Data Structure
+struct SysInfo {
+    std::string osName;
+    std::string kernel;
+    std::string uptime;
+    std::string cpuModel;
+    std::string machineModel;
+};
+
 // CPU Data Structure
 struct CPUData {
     long long activeTime;
@@ -38,5 +47,6 @@ long long getCPUEnergyUj();
 MemData getMemInfo();
 DiskData getRootDisk();
 NetData getPrimaryNet();
+SysInfo getSysInfo();
 
 #endif // METRICS_H

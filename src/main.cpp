@@ -58,6 +58,9 @@ int main() {
         double mbpsOut = ((curNet.txBytes - prevNet.txBytes) * 8.0 / 1000000.0) / (INTERVAL_MS / 1000.0);
         prevNet = curNet;
 
+        // SysInfo
+        SysInfo sys = getSysInfo();
+
         // ------------------
         // RENDER UI
         // ------------------
@@ -65,6 +68,15 @@ int main() {
         cout << " 🚀 CLOUDCHEAP STATUS MONITOR | AUTO REFRESH: 1S\n";
         cout << "=========================================================\n" << RESET;
         
+        // SYSTEM INFO BLOCK
+        cout << BOLD << " [ SYSTEM ]\n" << RESET;
+        cout << " OS:     " << sys.osName << " (" << sys.kernel << ")\n";
+        cout << " Model:  " << (sys.machineModel.empty() || sys.machineModel == " " ? "Generic System" : sys.machineModel) << "\n";
+        cout << " CPU:    " << sys.cpuModel << "\n";
+        cout << " Uptime: " << sys.uptime << "\n";
+        
+        cout << CYAN << "---------------------------------------------------------\n" << RESET;
+
         // CPU BLOCK
         double temp = getCPUTemp();
         cout << BOLD << " [ CPU ]\n" << RESET;

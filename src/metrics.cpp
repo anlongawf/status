@@ -2,8 +2,77 @@
 #include <fstream>
 #include <sstream>
 #include <sys/statvfs.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 #include <iostream>
+#include <vector>
+
+using namespace std;
+
+SysInfo getSysInfo() {
+    SysInfo info = {"Unknown OS", "Unknown Kernel", "0m", "Unknown CPU", "Unknown Model"};
+    
+    // 1. Get OS Name
+    ifstream fpos("/etc/os-release");
+    if (fpos.is_open()) {
+        string line;
+        while (getline(fpos, line)) {
+            if (line.find("PRETTY_NAME=") == 0) {
+                info.osName = line.substr(12);
+                if (info.osName.front() == '"' && info.osName.back() == '"') {
+                     info.osName = info.osName.substr(1, info.osName.size() - 2);
+                }
+                break;
+            }
+        }
+    }
+    
+    // 2. Get Kernel
+    struct utsname buffer;
+    if (uname(&buffer) == 0) {
+        info.kernel = buffer.release;
+    }
+    
+    // 3. Get Uptime
+    ifstream fput("/proc/uptime");
+    if (fput.is_open()) {
+        double uptimeSec;
+        if (fput >> uptimeSec) {
+            int days = uptimeSec / 86400;
+            int hours = ((int)uptimeSec % 86400) / 3600;
+            int mins = ((int)uptimeSec % 3600) / 60;
+            info.uptime = to_string(days) + "d " + to_string(hours) + "h " + to_string(mins) + "m";
+        }
+    }
+    
+    // 4. Get CPU Model
+    ifstream fpcpu("/proc/cpuinfo");
+    if (fpcpu.is_open()) {
+        string line;
+        while (getline(fpcpu, line)) {
+            if (line.find("model name") == 0) {
+                size_t pos = line.find(":");
+                if (pos != string::npos) {
+                    info.cpuModel = line.substr(pos + 2);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 5. Get Machine Model (DMI)
+    ifstream fpvendor("/sys/class/dmi/id/sys_vendor");
+    ifstream fpproduct("/sys/class/dmi/id/product_name");
+    string vendor = "", product = "";
+    if (fpvendor.is_open()) getline(fpvendor, vendor);
+    if (fpproduct.is_open()) getline(fpproduct, product);
+    
+    if (!vendor.empty() || !product.empty()) {
+        info.machineModel = vendor + (vendor.empty() ? "" : " ") + product;
+    }
+
+    return info;
+}
 
 using namespace std;
 
@@ -53,23 +122,37 @@ double getCPUTemp() {
 }
 
 long long getCPUEnergyUj() {
-    // Reads from intel RAPL interface (Works for both Intel Xeon and AMD Ryzen on modern kernels)
-    ifstream fp("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj");
-    long long uj = 0;
-    if (fp.is_open()) {
-        fp >> uj;
-    } else {
-        // Fallback for some AMD systems using hwmon
-        for (int i = 0; i < 5; ++i) {
-            ifstream fp_hwmon("/sys/class/hwmon/hwmon" + to_string(i) + "/energy1_input");
-            if (fp_hwmon.is_open()) {
-                if (fp_hwmon >> uj) {
-                    return uj; // Found hwmon energy_uj
-                }
+    long long totalUj = 0;
+    bool foundIntel = false;
+    
+    // Support Dual/Quad CPU Sockets: Loop through intel-rapl:0, intel-rapl:1, etc.
+    for (int i = 0; i < 4; ++i) {
+        ifstream fp("/sys/class/powercap/intel-rapl/intel-rapl:" + to_string(i) + "/energy_uj");
+        if (fp.is_open()) {
+            long long uj = 0;
+            if (fp >> uj) {
+                totalUj += uj;
+                foundIntel = true;
             }
         }
     }
-    return uj;
+    
+    if (foundIntel) {
+        return totalUj;
+    }
+    
+    // Fallback for some AMD systems using hwmon
+    for (int i = 0; i < 5; ++i) {
+        ifstream fp_hwmon("/sys/class/hwmon/hwmon" + to_string(i) + "/energy1_input");
+        if (fp_hwmon.is_open()) {
+            long long uj = 0;
+            if (fp_hwmon >> uj) {
+                return uj; // Found hwmon energy_uj (Usually AMD reports total)
+            }
+        }
+    }
+    
+    return 0; // Unsupported
 }
 
 MemData getMemInfo() {
