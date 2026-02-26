@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <thread>
 #include <chrono>
+#include <sstream>
 
 using namespace std;
 
@@ -21,11 +22,8 @@ int main() {
     cout << "\033[2J";
     
     while (true) {
-        // Move cursor to top-left instead of clearing the screen to prevent flickering
-        cout << "\033[H";
-        
         // ------------------
-        // CALCULATE METRICS
+        // WAIT & CALCULATE
         // ------------------
         this_thread::sleep_for(chrono::milliseconds(INTERVAL_MS));
         
@@ -65,66 +63,73 @@ int main() {
         SysInfo sys = getSysInfo();
 
         // ------------------
-        // RENDER UI
+        // RENDER UI TO BUFFER
         // ------------------
-        cout << BOLD << CYAN << "=========================================================\n";
-        cout << " 🚀 CLOUDCHEAP STATUS MONITOR | AUTO REFRESH: 1S\n";
-        cout << "=========================================================\n" << RESET;
+        stringstream ss;
+        // Move cursor top-left
+        ss << "\033[H";
+        
+        ss << BOLD << CYAN << "=========================================================\033[K\n";
+        ss << " 🚀 CLOUDCHEAP STATUS MONITOR | AUTO REFRESH: 1S\033[K\n";
+        ss << "=========================================================\033[K\n" << RESET;
         
         // SYSTEM INFO BLOCK
-        cout << BOLD << " [ SYSTEM ]\n" << RESET;
-        cout << " OS:     " << sys.osName << " (" << sys.kernel << ")\n";
-        cout << " Model:  " << (sys.machineModel.empty() || sys.machineModel == " " ? "Generic System" : sys.machineModel) << "\n";
-        cout << " CPU:    " << sys.cpuModel << "\n";
-        cout << " Uptime: " << sys.uptime << "\n";
+        ss << BOLD << " [ SYSTEM ]\033[K\n" << RESET;
+        ss << " OS:     " << sys.osName << " (" << sys.kernel << ")\033[K\n";
+        ss << " Model:  " << (sys.machineModel.empty() || sys.machineModel == " " ? "Generic System" : sys.machineModel) << "\033[K\n";
+        ss << " CPU:    " << sys.cpuModel << "\033[K\n";
+        ss << " Uptime: " << sys.uptime << "\033[K\n";
         
-        cout << CYAN << "---------------------------------------------------------\n" << RESET;
+        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
 
         // CPU BLOCK
         double temp = getCPUTemp();
-        cout << BOLD << " [ CPU ]\n" << RESET;
-        cout << " Usage: " << colorize(cpuPercent, 70, 90) << drawBar(cpuPercent) << " ";
-        cout << fixed << setprecision(1) << cpuPercent << "%\t" << RESET << "| Cores: " << getCoreCount() << "\n";
+        ss << BOLD << " [ CPU ]\033[K\n" << RESET;
+        ss << " Usage: " << colorize(cpuPercent, 70, 90) << drawBar(cpuPercent) << " ";
+        ss << fixed << setprecision(1) << cpuPercent << "%\t" << RESET << "| Cores: " << getCoreCount() << "\033[K\n";
         
-        cout << " Temp:  ";
-        if (temp > 0) cout << colorize(temp, 75, 85) << temp << "°C\t\t\t" << RESET;
-        else cout << "N/A\t\t\t";
+        ss << " Temp:  ";
+        if (temp > 0) ss << colorize(temp, 75, 85) << temp << "°C\t\t\t" << RESET;
+        else ss << "N/A\t\t\t";
         
-        cout << "| Load:  " << getLoadAvg() << "\n";
+        ss << "| Load:  " << getLoadAvg() << "\033[K\n";
 
-        cout << " Power: ";
-        if (watts > 0) cout << colorize(watts, 100, 200) << watts << " W\n" << RESET;
-        else cout << "N/A (RAPL/hwmon unsupported)\n";
+        ss << " Power: ";
+        if (watts > 0) ss << colorize(watts, 100, 200) << watts << " W\033[K\n" << RESET;
+        else ss << "N/A (RAPL/hwmon unsupported)\033[K\n";
         
-        cout << CYAN << "---------------------------------------------------------\n" << RESET;
+        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
 
         // MEM BLOCK
-        cout << BOLD << " [ RAM & SWAP ]\n" << RESET;
-        cout << " RAM:  " << colorize(ramPercent, 80, 95) << drawBar(ramPercent) << " ";
-        cout << (usedRAM/1024) << "MB / " << (mem.totalRAM/1024) << "MB (" << (int)ramPercent << "%)\n" << RESET;
+        ss << BOLD << " [ RAM & SWAP ]\033[K\n" << RESET;
+        ss << " RAM:  " << colorize(ramPercent, 80, 95) << drawBar(ramPercent) << " ";
+        ss << (usedRAM/1024) << "MB / " << (mem.totalRAM/1024) << "MB (" << (int)ramPercent << "%)\033[K\n" << RESET;
         
-        cout << " Swap: " << colorize(swapPercent, 1, 50) << drawBar(swapPercent) << " ";
+        ss << " Swap: " << colorize(swapPercent, 1, 50) << drawBar(swapPercent) << " ";
         if (mem.totalSwap > 0)
-            cout << ((mem.totalSwap - mem.freeSwap)/1024) << "MB / " << (mem.totalSwap/1024) << "MB (" << (int)swapPercent << "%)\n" << RESET;
+            ss << ((mem.totalSwap - mem.freeSwap)/1024) << "MB / " << (mem.totalSwap/1024) << "MB (" << (int)swapPercent << "%)\033[K\n" << RESET;
         else
-            cout << "0MB (Disabled)\n" << RESET;
+            ss << "0MB (Disabled)\033[K\n" << RESET;
             
-        cout << CYAN << "---------------------------------------------------------\n" << RESET;
+        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
 
         // DISK BLOCK
-        cout << BOLD << " [ DISK / ]\n" << RESET;
-        cout << " Space: " << colorize(disk.percentUsed, 80, 95) << drawBar(disk.percentUsed) << " ";
-        cout << disk.usedGB << "GB / " << disk.totalGB << "GB (" << (int)disk.percentUsed << "%)\n" << RESET;
-        cout << " Inode: " << colorize(disk.inodePercentUsed, 80, 90) << (int)disk.inodePercentUsed << "% Used\n" << RESET;
+        ss << BOLD << " [ DISK / ]\033[K\n" << RESET;
+        ss << " Space: " << colorize(disk.percentUsed, 80, 95) << drawBar(disk.percentUsed) << " ";
+        ss << disk.usedGB << "GB / " << disk.totalGB << "GB (" << (int)disk.percentUsed << "%)\033[K\n" << RESET;
+        ss << " Inode: " << colorize(disk.inodePercentUsed, 80, 90) << (int)disk.inodePercentUsed << "% Used\033[K\n" << RESET;
 
-        cout << CYAN << "---------------------------------------------------------\n" << RESET;
+        ss << CYAN << "---------------------------------------------------------\033[K\n" << RESET;
 
         // NET BLOCK
-        cout << BOLD << " [ NETWORK (" << curNet.interface << ") ]\n" << RESET;
-        cout << " RX In:  " << mbpsIn << " Mbps\t\t[ Loss: " << (curNet.rxDrop > 0 ? RED : GREEN) << curNet.rxDrop << RESET << " ]\n";
-        cout << " TX Out: " << mbpsOut << " Mbps\t\t[ Err:  " << (curNet.rxErr > 0 ? RED : GREEN) << curNet.rxErr << RESET << " ]\n";
+        ss << BOLD << " [ NETWORK (" << curNet.interface << ") ]\033[K\n" << RESET;
+        ss << " RX In:  " << mbpsIn << " Mbps\t\t[ Loss: " << (curNet.rxDrop > 0 ? RED : GREEN) << curNet.rxDrop << RESET << " ]\033[K\n";
+        ss << " TX Out: " << mbpsOut << " Mbps\t\t[ Err:  " << (curNet.rxErr > 0 ? RED : GREEN) << curNet.rxErr << RESET << " ]\033[K\n";
 
-        cout << CYAN << "=========================================================\n" << RESET;
+        ss << CYAN << "=========================================================\033[K\n" << RESET;
+        
+        // Print everything instantly and flush to trigger visual update
+        cout << ss.str() << flush;
     }
     
     return 0;

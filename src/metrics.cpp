@@ -127,12 +127,20 @@ long long getCPUEnergyUj() {
     
     // Support Dual/Quad CPU Sockets: Loop through intel-rapl:0, intel-rapl:1, etc.
     for (int i = 0; i < 4; ++i) {
-        ifstream fp("/sys/class/powercap/intel-rapl/intel-rapl:" + to_string(i) + "/energy_uj");
-        if (fp.is_open()) {
-            long long uj = 0;
-            if (fp >> uj) {
-                totalUj += uj;
-                foundIntel = true;
+        string paths[] = {
+            "/sys/class/powercap/intel-rapl/intel-rapl:" + to_string(i) + "/energy_uj", // Newer Kernels
+            "/sys/class/powercap/intel-rapl:" + to_string(i) + "/energy_uj"             // Older Xeons
+        };
+        
+        for (const string& path : paths) {
+            ifstream fp(path);
+            if (fp.is_open()) {
+                long long uj = 0;
+                if (fp >> uj) {
+                    totalUj += uj;
+                    foundIntel = true;
+                    break; // Move to next socket
+                }
             }
         }
     }
